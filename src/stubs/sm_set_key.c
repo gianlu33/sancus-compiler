@@ -5,6 +5,7 @@ void SM_ENTRY(SM_NAME) __sm_set_key(const uint8_t* ad, const uint8_t* cipher,
 {
     conn_index conn_id = (ad[0] << 8) | ad[1];
     io_index io_id = (ad[2] << 8) | ad[3];
+    uint16_t nonce = (ad[4] << 8) | ad[5];
     ResultCode code = Ok;
 
     //TODO check nonce!! replay attacks
@@ -13,6 +14,11 @@ void SM_ENTRY(SM_NAME) __sm_set_key(const uint8_t* ad, const uint8_t* cipher,
     // wrong happens
     while(1) {
       if (__sm_num_connections == SM_MAX_CONNECTIONS) {
+        code = InternalError;
+        break;
+      }
+
+      if(nonce != __sm_num_connections) {
         code = InternalError;
         break;
       }
