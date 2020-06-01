@@ -61,7 +61,7 @@ def add_sym(file, sym_map):
 
     args += [file, file]
     call_prog('msp430-elf-objcopy', args)
-    return file 
+    return file
 
 
 def parse_size(val):
@@ -90,16 +90,16 @@ def get_symbol(elf_file, name):
 
 def get_io_sym_map(sm_name):
     sym_map = {
-        '__sm_handle_input':    '__sm_{}_handle_input'.format(sm_name),
-        '__sm_num_inputs':      '__sm_{}_num_inputs'.format(sm_name),
-        '__sm_num_connections': '__sm_{}_num_connections'.format(sm_name),
-        '__sm_io_keys':         '__sm_{}_io_keys'.format(sm_name),
-        '__sm_input_callbacks': '__sm_{}_input_callbacks'.format(sm_name),
-        '__sm_output_nonce':    '__sm_{}_output_nonce'.format(sm_name),
-        '__sm_send_output':     '__sm_{}_send_output'.format(sm_name),
-        '__sm_set_key':         '__sm_{}_set_key'.format(sm_name),
-        '__sm_X_exit':          '__sm_{}_exit'.format(sm_name),
-        '__sm_X_stub_malloc':   '__sm_{}_stub_malloc'.format(sm_name),
+        '__sm_handle_input':        '__sm_{}_handle_input'.format(sm_name),
+        '__sm_num_inputs':          '__sm_{}_num_inputs'.format(sm_name),
+        '__sm_num_connections':     '__sm_{}_num_connections'.format(sm_name),
+        '__sm_max_connections':     '__sm_{}_max_connections'.format(sm_name),
+        '__sm_io_connections':      '__sm_{}_io_connections'.format(sm_name),
+        '__sm_input_callbacks':     '__sm_{}_input_callbacks'.format(sm_name),
+        '__sm_send_output':         '__sm_{}_send_output'.format(sm_name),
+        '__sm_set_key':             '__sm_{}_set_key'.format(sm_name),
+        '__sm_X_exit':              '__sm_{}_exit'.format(sm_name),
+        '__sm_X_stub_malloc':       '__sm_{}_stub_malloc'.format(sm_name),
         '__sm_X_stub_reactive_handle_output':
             '__sm_{}_stub_reactive_handle_output'.format(sm_name)
     }
@@ -181,6 +181,12 @@ parser.add_argument('--scan-libraries-for-sm',
                     'libraries that are given as a full path (-l:/path/to/file.a). '
                     'As such, it does not scan -lm style libraries unnecessarily.',
                     action='store_true')
+parser.add_argument('--num-connections',
+                    help='Parameter for Authentic Execution. Maximum number of '
+                    'connections that the module can have. '
+                    'This number impacts on the size of the module.',
+                    type=int,
+                    default=0)
 
 args, cli_ld_args = parser.parse_known_args()
 set_args(args)
@@ -199,7 +205,7 @@ if args.scan_libraries_for_sm:
     for a in archive_files:
         debug("Unpacking archive for Sancus SM inspection: " + a)
         file_name = a
-        if ':' in a: 
+        if ':' in a:
             # support calls such as -lib:/full/path
             file_name = file_name.split(':')[1]
 
@@ -743,29 +749,25 @@ for sm in sms:
         input_callbacks += '    {}(.sm.{}.callbacks)\n'.format(o_file, sm)
         input_callbacks += '    . = ALIGN(2);'
 
-    # Table of connection keys
-    io_keys = ''
+    # Table of connections
+    num_connections = ''
+    io_connections = ''
 
     if len(ios) > 0:
-        io_keys += '__sm_{}_io_keys = .;\n'.format(sm)
-        io_keys += '    . += {};\n'.format(len(ios) * KEY_SIZE)
-        io_keys += '    . = ALIGN(2);'
-
-    # Nonce used by outputs
-    outputs_nonce = ''
-
-    if len(outputs) > 0:
-        outputs_nonce += '__sm_{}_output_nonce = .;\n'.format(sm)
-        outputs_nonce += '    . += 2;\n'
-        outputs_nonce += '    . = ALIGN(2);'
+        num_connections += '__sm_{}_num_connections = .;\n'.format(sm)
+        num_connections += '    . += 2;\n'
+        num_connections += '    . = ALIGN(2);'
+        io_connections += '__sm_{}_io_connections = .;\n'.format(sm)
+        io_connections += '    . += {};\n'.format(args.num_connections * (6 + KEY_SIZE))
+        io_connections += '    . = ALIGN(2);'
 
     text_sections.append(text_section.format(sm, entry_file, isr_file,
                                              exit_file, '\n    '.join(tables),
                                              input_callbacks,
                                              '\n    '.join(extra_labels)))
     data_sections.append(data_section.format(sm, '\n    '.join(id_syms),
-                                             args.sm_stack_size, io_keys,
-                                             outputs_nonce))
+                                             args.sm_stack_size, num_connections,
+                                             io_connections))
 
     if sm in sms_entries:
         num_entries = len(sms_entries[sm])
@@ -782,7 +784,7 @@ for sm in sms:
         symbols.append('__sm_{}_io_{}_idx = {};'.format(sm, io, index))
 
     # Add symbols for the number of connections/inputs
-    symbols.append('__sm_{}_num_connections = {};'.format(sm, len(ios)))
+    symbols.append('__sm_{}_max_connections = {};'.format(sm, args.num_connections))
     symbols.append('__sm_{}_num_inputs = {};'.format(sm, len(inputs)))
 
     if args.prepare_for_sm_text_section_wrapping:
