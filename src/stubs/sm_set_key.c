@@ -8,8 +8,6 @@ void SM_ENTRY(SM_NAME) __sm_set_key(const uint8_t* ad, const uint8_t* cipher,
     uint16_t nonce = (ad[4] << 8) | ad[5];
     ResultCode code = Ok;
 
-    //TODO check nonce!! replay attacks
-
     // here i use a "fake" while loop to break the control flow if something
     // wrong happens
     while(1) {

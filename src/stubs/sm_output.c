@@ -18,7 +18,11 @@ SM_FUNC(SM_NAME) void __sm_send_output(io_index index,
       uint8_t* payload = malloc(payload_len);
       if (payload == NULL)
         continue;
-      sancus_wrap_with_key(conn->key, &conn->nonce, sizeof(conn->nonce), data,
+
+      // associated data only contains the nonce, therefore we can use this
+      // this trick to build the array fastly (i.e. by swapping the bytes)
+      uint16_t nonce_rev = conn->nonce << 8 | conn->nonce >> 8;
+      sancus_wrap_with_key(conn->key, &nonce_rev, sizeof(nonce_rev), data,
                           len, payload, payload + len);
       conn->nonce++;
       reactive_handle_output(conn->conn_id, payload, payload_len);

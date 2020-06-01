@@ -29,9 +29,11 @@ void SM_ENTRY(SM_NAME) __sm_handle_input(conn_index conn_id,
     // TODO check for stack overflow!
     uint8_t* input_buffer = alloca(data_len);
 
-    if (sancus_unwrap_with_key(conn->key, &conn->nonce, sizeof(conn->nonce),
-                               cipher, data_len, tag, input_buffer))
-    {
+    // associated data only contains the nonce, therefore we can use this
+    // this trick to build the array fastly (i.e. by swapping the bytes)
+    uint16_t nonce_rev = conn->nonce << 8 | conn->nonce >> 8;
+    if (sancus_unwrap_with_key(conn->key, &nonce_rev, sizeof(nonce_rev),
+                               cipher, data_len, tag, input_buffer)) {
         conn->nonce++;
         __sm_input_callbacks[conn->io_id](input_buffer, data_len);
     }
