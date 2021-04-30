@@ -98,6 +98,7 @@ def get_io_sym_map(sm_name):
         '__sm_input_callbacks':     '__sm_{}_input_callbacks'.format(sm_name),
         '__sm_send_output':         '__sm_{}_send_output'.format(sm_name),
         '__sm_set_key':             '__sm_{}_set_key'.format(sm_name),
+        '__sm_attest':              '__sm_{}_attest'.format(sm_name),
         '__sm_X_exit':              '__sm_{}_exit'.format(sm_name),
         '__sm_X_stub_malloc':       '__sm_{}_stub_malloc'.format(sm_name),
         '__sm_X_stub_reactive_handle_output':
@@ -113,7 +114,7 @@ def get_io_sect_map(sm_name):
         '.rela.sm.X.text':  '.rela.sm.{}.text'.format(sm_name),
     }
 
-    for entry in ('__sm{}_set_key', '__sm{}_handle_input'):
+    for entry in ('__sm{}_set_key', '__sm{}_attest', '__sm{}_handle_input'):
         map['.sm.X.{}.table'.format(entry.format(''))] = \
             '.sm.{}.{}.table'.format(sm_name, entry.format('_' + sm_name))
         map['.rela.sm.X.{}.table'.format(entry.format(''))] = \
@@ -134,15 +135,19 @@ def create_io_stub(sm, stub):
 
 
 def sort_entries(entries):
-    # If the set_key entry exists, it should have index 0 and if the
-    # handle_input entry exists, it should have index 1. This is accomplished by
-    # mapping those entries to __ and ___ respectively since those come
+    # If the set_key entry exists, it should have index 0, if the
+    # attest entry exists, it should have index 1 and if
+    # handle_input entry exists, it should have index 2. This is accomplished by
+    # mapping those entries to __, ___ and ___ respectively since those come
     # alphabetically before any valid entry name.
     def sort_key(entry):
         if re.match(r'__sm_\w+_set_key', entry.name):
             return '__'
-        if re.match(r'__sm_\w+_handle_input', entry.name):
+        if re.match(r'__sm_\w+_attest', entry.name):
             return '___'
+        if re.match(r'__sm_\w+_handle_input', entry.name):
+            return '____'
+
         return entry.name
 
     entries.sort(key=sort_key)
@@ -262,6 +267,7 @@ existing_macs = []
 elf_relocations = defaultdict(list)
 
 added_set_key_stub = False
+added_attest_stub = False
 added_input_stub = False
 added_output_stub = False
 
@@ -401,6 +407,14 @@ while i < len(input_files_to_scan):
                         # And register it to also be scanned by this loop later
                         input_files_to_scan.append(generated_file)
                         added_set_key_stub = True
+
+                    if not added_attest_stub:
+                        # Generate the attest stub file
+                        generated_file = create_io_stub(sm, 'sm_attest.o')
+                        generated_object_files.append(generated_file)
+                        # And register it to also be scanned by this loop later
+                        input_files_to_scan.append(generated_file)
+                        added_attest_stub = True
 
                     if which == 'input':
                         dest = sms_inputs
