@@ -32,8 +32,7 @@ void SM_ENTRY(SM_NAME) __sm_handle_input(conn_index conn_id,
       // In this case, sancus_unwrap would always fail due to some bug
       // therefore we just check if the tag is correct.
       const uint8_t *tag = payload;
-      uint8_t *expected_tag = malloc(SANCUS_TAG_SIZE);
-      if(expected_tag == NULL) return;
+      uint8_t expected_tag[SANCUS_TAG_SIZE];
       sancus_tag_with_key(conn->key, &nonce_rev, sizeof(nonce_rev), expected_tag);
       int success = 1, i;
       for(i=0; i<SANCUS_TAG_SIZE; i++) {
