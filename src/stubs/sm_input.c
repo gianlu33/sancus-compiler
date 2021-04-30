@@ -41,7 +41,6 @@ void SM_ENTRY(SM_NAME) __sm_handle_input(conn_index conn_id,
           break;
         }
       }
-      free(expected_tag);
 
       if(success) {
         conn->nonce++;
